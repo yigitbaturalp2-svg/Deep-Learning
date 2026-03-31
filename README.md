@@ -1,6 +1,6 @@
 # YZM304 Derin Ogrenme Dersi
 
-Yiğit Baturalp — [Öğrenci No] Ankara Üniversitesi · Yapay Zeka ve Veri Mühendisliği 2025–2026 Bahar Donemi
+Yiğit Baturalp — 23291030 Ankara Üniversitesi · Yapay Zeka ve Veri Mühendisliği 2025–2026 Bahar Donemi
 
 ---
 
