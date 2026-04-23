@@ -9,5 +9,6 @@ Yiğit Baturalp — 23291030 Ankara Üniversitesi · Yapay Zeka ve Veri Mühendi
 | # | Klasör | Konu | Durum |
 |---|---|---|---|
 | 1 | [proje-1/](./proje-1/) | MLP ile Sınıflandırma (BankNote + Wine Quality) | Tamamlandı |
+| 4 | [proje-4/](./proje-4/) | CIFAR-10: CNN Modelleri + Hibrit (CNN + SVM) | Tamamlandı |
 
 Her projenin kendi klasorunde ayri bir `README.md` dosyası bulunmaktadır.

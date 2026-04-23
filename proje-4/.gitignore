@@ -1,0 +1,11 @@
+# Veri/Çıktılar
+/data/
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.pkl
+*.joblib
+*.npz
+*.npy
+__pycache__/
