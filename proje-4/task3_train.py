@@ -3,71 +3,112 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
+import numpy as np
+import os
+from task2_models import BasicCNN, ImprovedCNN, StandardCNN
 
-# task2_models.py dosyasından modellerimizi içe aktarıyoruz
-from task2_models import BasicCNN, ImprovedCNN
-
-def train_and_evaluate(model, trainloader, testloader, device, model_name="Model", epochs=5):
-    print(f"\n{'='*40}")
-    print(f"Eğitim Başlıyor: {model_name}")
-    print(f"{'='*40}")
-
-    # 1. Kayıp Fonksiyonu ve Optimizer (Derste istenen gereksinimler)
+def train_and_evaluate(model, trainloader, testloader, device, model_name, epochs=5):
+    print(f"\n>>> {model_name} Eğitimi Başlıyor...")
+    model = model.to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-    model.to(device)
+    history = {'loss': [], 'accuracy': []}
 
-    # 2. Eğitim Döngüsü
     for epoch in range(epochs):
-        model.train() # Modeli eğitim moduna al
+        model.train()
         running_loss = 0.0
-        
         for i, data in enumerate(trainloader, 0):
             inputs, labels = data
             inputs, labels = inputs.to(device), labels.to(device)
 
-            # Gradyanları sıfırla
             optimizer.zero_grad()
-
-            # İleri yayılım (Forward), Kayıp (Loss) hesaplama ve Geri yayılım (Backward)
             outputs = model(inputs)
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
-
             running_loss += loss.item()
 
-        print(f"[{model_name}] Epoch {epoch + 1}/{epochs} tamamlandı. Ortalama Loss: {running_loss / len(trainloader):.4f}")
+        avg_loss = running_loss / len(trainloader)
+        history['loss'].append(avg_loss)
+        
+        # Epoch sonu accuracy hesapla
+        model.eval()
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for data in testloader:
+                inputs, labels = data
+                inputs, labels = inputs.to(device), labels.to(device)
+                outputs = model(inputs)
+                _, predicted = torch.max(outputs.data, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
+        
+        acc = 100 * correct / total
+        history['accuracy'].append(acc)
+        print(f"Epoch {epoch + 1}/{epochs} - Loss: {avg_loss:.4f} - Accuracy: %{acc:.2f}")
 
-    # 3. Test (Değerlendirme) Döngüsü
-    print(f"{model_name} için Test aşamasına geçiliyor...")
-    model.eval() # Modeli test moduna al (Dropout, BatchNorm vb. için kritik!)
-    correct = 0
-    total = 0
+    return model, history
+
+def save_plots(history_dict, model_names, output_dir='results'):
+    os.makedirs(output_dir, exist_ok=True)
     
-    # Test aşamasında gradyan hesaplamaya gerek yok (hafıza tasarrufu)
+    # Loss Plot
+    plt.figure(figsize=(10, 5))
+    for name in model_names:
+        plt.plot(history_dict[name]['loss'], label=f'{name} Loss')
+    plt.title('Modellerin Eğitim Kayıpları (Loss)')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f'{output_dir}/comparison_loss.png')
+    plt.close()
+
+    # Accuracy Plot
+    plt.figure(figsize=(10, 5))
+    for name in model_names:
+        plt.plot(history_dict[name]['accuracy'], label=f'{name} Accuracy')
+    plt.title('Modellerin Test Doğrulukları (Accuracy)')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy (%)')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f'{output_dir}/comparison_accuracy.png')
+    plt.close()
+
+def save_confusion_matrix(model, testloader, device, model_name, output_dir='results'):
+    os.makedirs(output_dir, exist_ok=True)
+    model.eval()
+    all_preds = []
+    all_labels = []
     with torch.no_grad():
         for data in testloader:
             inputs, labels = data
             inputs, labels = inputs.to(device), labels.to(device)
             outputs = model(inputs)
-            
-            # En yüksek olasılığa sahip sınıfı seç
             _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
-
-    accuracy = 100 * correct / total
-    print(f"!!! {model_name} Test Seti Doğruluğu (Accuracy): %{accuracy:.2f} !!!")
-    return accuracy
+            all_preds.extend(predicted.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+    
+    cm = confusion_matrix(all_labels, all_preds)
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+                xticklabels=range(10), yticklabels=range(10))
+    plt.title(f'{model_name} Karmaşıklık Matrisi')
+    plt.ylabel('Gerçek Sınıf')
+    plt.xlabel('Tahmin Edilen Sınıf')
+    plt.savefig(f'{output_dir}/{model_name.replace(" ", "_")}_cm.png')
+    plt.close()
 
 def main():
-    # Ekran kartı (GPU) varsa onu kullan, yoksa işlemciye (CPU) geç
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(f"Kullanılan Cihaz: {device}")
 
-    # Veri yükleme (Görev 1'deki işlemlerin aynısı)
     transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
@@ -75,26 +116,27 @@ def main():
     
     batch_size = 64
     trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
     
     testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
 
-    # Modelleri oluştur
-    model1 = BasicCNN()
-    model2 = ImprovedCNN()
+    models_to_train = {
+        "Model 1 (Temel)": BasicCNN(),
+        "Model 2 (Geliştirilmiş)": ImprovedCNN(),
+        "Model 3 (Standart)": StandardCNN()
+    }
 
-    # Vaktimiz dar olduğu için hızlı sonuç görmek adına epoch sayısını 5 yaptık. 
-    # Raporu hazırlarken daha yüksek accuracy için bunu 10 veya 15 yapabilirsin.
+    all_histories = {}
     epoch_count = 5
 
-    # Modelleri sırayla eğit ve test et
-    acc1 = train_and_evaluate(model1, trainloader, testloader, device, model_name="MODEL 1 (Temel CNN)", epochs=epoch_count)
-    acc2 = train_and_evaluate(model2, trainloader, testloader, device, model_name="MODEL 2 (Geliştirilmiş CNN)", epochs=epoch_count)
+    for name, model in models_to_train.items():
+        trained_model, history = train_and_evaluate(model, trainloader, testloader, device, name, epochs=epoch_count)
+        all_histories[name] = history
+        save_confusion_matrix(trained_model, testloader, device, name)
 
-    print("\n--- SONUÇ KARŞILAŞTIRMASI ---")
-    print(f"Model 1 (Temel) Başarımı: %{acc1:.2f}")
-    print(f"Model 2 (Geliştirilmiş) Başarımı: %{acc2:.2f}")
+    save_plots(all_histories, list(models_to_train.keys()))
+    print("\nBütün modeller eğitildi ve görseller 'results' klasörüne kaydedildi.")
 
 if __name__ == '__main__':
     main()

@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -59,4 +60,37 @@ class ImprovedCNN(nn.Module):
         x = self.dropout(x) # Dropout'u Tam Bağlantılı katman arasına ekledik
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
+        return x
+
+# ---------------------------------------------------------
+# MODEL 3: Standart CNN Mimarisi (Basitleştirilmiş VGG tipi)
+# ---------------------------------------------------------
+class StandardCNN(nn.Module):
+    def __init__(self):
+        super(StandardCNN, self).__init__()
+        # VGG tipi bloklar
+        self.features = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(32, 32, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        )
+        self.classifier = nn.Sequential(
+            nn.Linear(64 * 8 * 8, 512),
+            nn.ReLU(inplace=True),
+            nn.Dropout(),
+            nn.Linear(512, 10),
+        )
+
+    def forward(self, x):
+        x = self.features(x)
+        x = torch.flatten(x, 1)
+        x = self.classifier(x)
         return x

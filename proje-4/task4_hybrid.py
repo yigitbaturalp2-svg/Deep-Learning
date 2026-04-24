@@ -78,10 +78,11 @@ def main():
     print(f"Test Özellikleri (X_test): {test_features.shape}")
     print(f"Test Etiketleri (y_test): {test_labels.shape}\n")
 
-    # 4. Kanonik Makine Öğrenmesi Modeli Eğitimi (SVM)
-    print("Destek Vektör Makinesi (SVM) eğitiliyor...")
-    # SVM eğitimi özellik seti büyük olduğunda yavaş olabilir, hızlı sonuç için max_iter koyulabilir ama standart bırakıyoruz
-    svm_model = SVC(kernel='linear', random_state=42) 
+    # 4. Kanonik Makine Öğrenmesi Modeli Eğitimi (LinearSVC)
+    print("Destek Vektör Makinesi (LinearSVC) eğitiliyor...")
+    # LinearSVC büyük veri setlerinde SVC(kernel='linear')'dan çok daha hızlıdır.
+    from sklearn.svm import LinearSVC
+    svm_model = LinearSVC(random_state=42, max_iter=1000) 
     svm_model.fit(train_features, train_labels)
 
     # 5. Test ve Değerlendirme
@@ -93,7 +94,18 @@ def main():
     
     # Rapor için karmaşıklık matrisi (Confusion Matrix)
     print("\nKarmaşıklık Matrisi (Raporuna eklemen için):")
-    print(confusion_matrix(test_labels, predictions))
+    cm = confusion_matrix(test_labels, predictions)
+    print(cm)
+
+    # Görsel olarak kaydet
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    os.makedirs('results', exist_ok=True)
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Oranges')
+    plt.title('Model 4 (Hybrid) Karmaşıklık Matrisi')
+    plt.savefig('results/Model_4_(Hibrit)_cm.png')
+    plt.close()
 
 if __name__ == '__main__':
     main()
